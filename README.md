@@ -14,25 +14,19 @@ cargo install --git https://github.com/rtk-ai/rtk
 
 ## Installation
 
-Install via npm:
+No npm release needed. Copy `src/index.ts` and `src/rewrite.ts` into a plugin
+directory:
 
-```bash
-npm install openrtk
-```
+- `~/.config/opencode/plugins/` to cover every project
+- `.opencode/plugins/` to cover one project
 
-Then add to your OpenCode config (`opencode.json` or `.opencode/config.json`):
-
-```json
-{
-  "plugin": ["openrtk"]
-}
-```
-
-Or copy `src/index.ts` directly into `.opencode/plugins/` for local use.
+then restart OpenCode. If `"openrtk"` sits in the `plugin` array in
+`opencode.json`, remove it, or the old npm release loads next to the
+local copy and every command gets rewritten twice.
 
 ## How it works
 
-The plugin hooks into OpenCode's `tool.execute.before` event and rewrites shell commands to go through RTK before execution. This is fully transparent to the model.
+The plugin hooks into OpenCode's shell handling and rewrites commands to go through RTK before execution. On OpenCode 2 it uses the `shell create.before` hook; on OpenCode 1 it falls back to `tool.execute.before`. This is fully transparent to the model.
 
 ```
 git status       ->  rtk git status       (72% savings)
@@ -53,6 +47,7 @@ docker ps        ->  rtk docker ps        (65% savings)
 | Network | curl, wget |
 | Python | pytest, ruff, pip, uv pip |
 | Go | go test/build/vet, golangci-lint |
+| Elixir | mix (test/compile/credo/format/dialyzer/ecto), iex |
 | Packages | pnpm list/ls/outdated |
 
 ### System prompt
