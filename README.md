@@ -6,10 +6,10 @@ A lightweight OpenCode plugin that intercepts shell commands and pipes them thro
 
 ## Prerequisites
 
-Install RTK:
+Install RTK (note: `cargo install rtk` installs an unrelated crate):
 
 ```bash
-cargo install rtk
+cargo install --git https://github.com/rtk-ai/rtk
 ```
 
 ## Installation
