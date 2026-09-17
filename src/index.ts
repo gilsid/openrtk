@@ -1,32 +1,68 @@
-import type { Plugin } from "@opencode-ai/plugin"
-import { rewrite } from "./rewrite"
+import type { Plugin } from "@opencode/plugin"
+import { execFile } from "node:child_process"
+import { rewrite } from "./rewrite.js"
 
-export const rtkPlugin: Plugin = async ({ $ }) => {
-  // Check rtk is installed at plugin load time
+/** True when the `rtk` binary is installed and runs. */
+function rtkInstalled(): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile("rtk", ["--version"], (error) => resolve(!error))
+  })
+}
+
+async function setup(ctx: Plugin.Context): Promise<void> {
+  if (!(await rtkInstalled())) {
+    console.warn("[openrtk] rtk binary not found in PATH, plugin disabled")
+    return
+  }
+
+  await ctx.shell.hook("create.before", (event) => {
+    const rewritten = rewrite(event.command)
+    if (rewritten) event.command = rewritten
+  })
+}
+
+interface V1Shell {
+  (strings: TemplateStringsArray, ...values: unknown[]): { quiet(): Promise<unknown> }
+}
+
+interface V1BeforeInput {
+  tool?: string
+}
+
+interface V1BeforeOutput {
+  args?: Record<string, unknown>
+}
+
+export const rtkPlugin = async ({ $ }: { $: V1Shell }) => {
   try {
     await $`which rtk`.quiet()
   } catch {
-    console.warn("[openrtk] rtk binary not found in PATH — plugin disabled")
+    console.warn("[openrtk] rtk binary not found in PATH, plugin disabled")
     return {}
   }
 
   return {
-    "tool.execute.before": async (input, output) => {
-      // OpenCode may use "bash", "shell", or other names
+    "tool.execute.before": async (input: V1BeforeInput, output: V1BeforeOutput) => {
       const tool = String(input?.tool ?? "").toLowerCase()
       if (tool !== "bash" && tool !== "shell") return
 
-      // args may be {command: "..."} or have command nested differently
       const args = output?.args
       if (!args || typeof args !== "object") return
 
-      const command = (args as Record<string, unknown>).command
-      const rewritten = rewrite(command)
-      if (rewritten) {
-        ;(args as Record<string, unknown>).command = rewritten
-      }
+      const rewritten = rewrite(args.command)
+      if (rewritten) args.command = rewritten
     },
   }
 }
 
-export default rtkPlugin
+const v2 = {
+  id: "openrtk",
+  setup,
+} satisfies Plugin.Plugin
+
+export default {
+  ...v2,
+
+  // Entry point for OpenCode 1. Version 2 ignores it and uses id/setup above.
+  server: rtkPlugin,
+}

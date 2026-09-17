@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { rewrite } from "./rewrite"
+import pluginDefault, { rtkPlugin } from "./index.js"
+import { rewrite } from "./rewrite.js"
 
 describe("rewrite", () => {
   describe("git commands", () => {
@@ -274,5 +275,85 @@ describe("rewrite", () => {
     test("preserves multiple env vars", () => {
       expect(rewrite("FOO=1 BAR=2 git status")).toBe("FOO=1 BAR=2 rtk git status")
     })
+  })
+})
+
+describe("plugin entry points", () => {
+  test("default export carries the openrtk id with v1 and v2 hooks", () => {
+    expect(pluginDefault.id).toBe("openrtk")
+    expect(typeof pluginDefault.setup).toBe("function")
+    expect(typeof pluginDefault.server).toBe("function")
+  })
+
+  test("v2 setup rewrites shell commands", async () => {
+    let handler: ((event: { command: string }) => void) | undefined
+    await pluginDefault.setup({
+      shell: {
+        hook: async (_name: string, cb: (event: { command: string }) => void) => {
+          handler = cb
+        },
+      },
+    } as never)
+
+    const event = { command: "git status && git diff" }
+    await handler!(event)
+    expect(event.command).toBe("rtk git status && rtk git diff")
+  })
+
+  test("v2 setup leaves unknown commands alone", async () => {
+    let handler: ((event: { command: string }) => void) | undefined
+    await pluginDefault.setup({
+      shell: {
+        hook: async (_name: string, cb: (event: { command: string }) => void) => {
+          handler = cb
+        },
+      },
+    } as never)
+
+    const event = { command: "echo hello" }
+    await handler!(event)
+    expect(event.command).toBe("echo hello")
+  })
+
+  test("v2 setup stays quiet without the rtk binary", async () => {
+    const path = process.env.PATH
+    process.env.PATH = "/nonexistent"
+    try {
+      let registered = false
+      await pluginDefault.setup({
+        shell: {
+          hook: async () => {
+            registered = true
+          },
+        },
+      } as never)
+      expect(registered).toBe(false)
+    } finally {
+      process.env.PATH = path
+    }
+  })
+
+  test("v1 server rewrites bash tool commands", async () => {
+    const fakeShell = () => ({ quiet: async () => {} })
+    const hooks = (await rtkPlugin({ $: fakeShell as never })) as Record<
+      string,
+      (input: unknown, output: { args: Record<string, unknown> }) => Promise<void>
+    >
+
+    const output = { args: { command: "git status" } }
+    await hooks["tool.execute.before"]({ tool: "bash" }, output)
+    expect(output.args.command).toBe("rtk git status")
+  })
+
+  test("v1 server ignores other tools", async () => {
+    const fakeShell = () => ({ quiet: async () => {} })
+    const hooks = (await rtkPlugin({ $: fakeShell as never })) as Record<
+      string,
+      (input: unknown, output: { args: Record<string, unknown> }) => Promise<void>
+    >
+
+    const output = { args: { command: "git status" } }
+    await hooks["tool.execute.before"]({ tool: "read" }, output)
+    expect(output.args.command).toBe("git status")
   })
 })

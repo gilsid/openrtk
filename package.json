@@ -27,11 +27,9 @@
     "type": "git",
     "url": "https://github.com/martinstannard/openrtk"
   },
-  "peerDependencies": {
-    "@opencode-ai/plugin": "*"
-  },
   "devDependencies": {
-    "@opencode-ai/plugin": "*",
+    "@opencode/plugin": "^2.0.5",
+    "@types/node": "^22.0.0",
     "typescript": "^5.0.0"
   }
 }
