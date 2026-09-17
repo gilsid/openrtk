@@ -86,7 +86,7 @@ describe("rewrite", () => {
     })
 
     test("rewrites rg", () => {
-      expect(rewrite("rg pattern")).toBe("rtk grep pattern")
+      expect(rewrite("rg pattern")).toBe("rtk rg pattern")
     })
 
     test("rewrites ls", () => {
@@ -180,7 +180,7 @@ describe("rewrite", () => {
     })
 
     test("rewrites mix test", () => {
-      expect(rewrite("mix test")).toBe("rtk mix test")
+      expect(rewrite("mix test")).toBe("rtk test mix test")
     })
 
     test("rewrites mix compile", () => {
