@@ -208,6 +208,50 @@ describe("rewrite", () => {
     })
   })
 
+  describe("compound commands", () => {
+    test("rewrites each && segment", () => {
+      expect(rewrite("git status && git diff")).toBe("rtk git status && rtk git diff")
+    })
+
+    test("leaves unsupported segments untouched", () => {
+      expect(rewrite("git stash && nix flake check && git stash pop")).toBe(
+        "rtk git stash && nix flake check && rtk git stash pop",
+      )
+    })
+
+    test("supports ||, ; and pipes", () => {
+      expect(rewrite("git fetch || git pull; ls | grep foo")).toBe(
+        "rtk git fetch || rtk git pull; rtk ls | rtk grep foo",
+      )
+    })
+
+    test("does not split quoted separators", () => {
+      expect(rewrite('git commit -m "a && b"')).toBe('rtk git commit -m "a && b"')
+    })
+
+    test("honors backslash-escaped quotes", () => {
+      expect(rewrite('git commit -m "a \\" && b" && git status')).toBe(
+        'rtk git commit -m "a \\" && b" && rtk git status',
+      )
+    })
+
+    test("rewrites env-prefixed segments", () => {
+      expect(rewrite("CI=true cargo test && git status")).toBe("CI=true rtk cargo test && rtk git status")
+    })
+
+    test("only skips the heredoc segment", () => {
+      expect(rewrite("git status && cat <<EOF")).toBe("rtk git status && cat <<EOF")
+    })
+
+    test("skips segments already using rtk", () => {
+      expect(rewrite("rtk git status && git diff")).toBe("rtk git status && rtk git diff")
+    })
+
+    test("returns null when no segment matches", () => {
+      expect(rewrite("echo hello && echo world")).toBeNull()
+    })
+  })
+
   describe("skip conditions", () => {
     test("skips commands already using rtk", () => {
       expect(rewrite("rtk git status")).toBeNull()
