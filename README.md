@@ -24,6 +24,12 @@ then restart OpenCode. If `"openrtk"` sits in the `plugin` array in
 `opencode.json`, remove it, or the old npm release loads next to the
 local copy and every command gets rewritten twice.
 
+To refresh the installed copy after editing the source, run
+`bun run bundle` and copy `dist/openrtk.js` over the file in the
+plugin directory. The bundle step matters because OpenCode loads each
+file in that directory as its own plugin, so the two source files must
+ship as one.
+
 ## How it works
 
 The plugin hooks into OpenCode's shell handling and rewrites commands to go through RTK before execution. On OpenCode 2 it uses the `shell create.before` hook; on OpenCode 1 it falls back to `tool.execute.before`. This is fully transparent to the model.
